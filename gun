@@ -1,0 +1,435 @@
+
+--Converted with ttyyuu12345's model to script plugin v4
+function sandbox(var,func)
+	local env = getfenv(func)
+	local newenv = setmetatable({},{
+		__index = function(self,k)
+			if k=="script" then
+				return var
+			else
+				return env[k]
+			end
+		end,
+	})
+	setfenv(func,newenv)
+	return func
+end
+cors = {}
+mas = Instance.new("Model",game:GetService("Lighting"))
+Tool0 = Instance.new("Tool")
+Animation1 = Instance.new("Animation")
+Animation2 = Instance.new("Animation")
+LocalScript3 = Instance.new("LocalScript")
+RemoteEvent4 = Instance.new("RemoteEvent")
+IntValue5 = Instance.new("IntValue")
+Script6 = Instance.new("Script")
+ScreenGui7 = Instance.new("ScreenGui")
+Frame8 = Instance.new("Frame")
+TextLabel9 = Instance.new("TextLabel")
+Part10 = Instance.new("Part")
+Decal11 = Instance.new("Decal")
+WeldConstraint12 = Instance.new("WeldConstraint")
+Fire13 = Instance.new("Fire")
+PointLight14 = Instance.new("PointLight")
+ParticleEmitter15 = Instance.new("ParticleEmitter")
+Script16 = Instance.new("Script")
+Part17 = Instance.new("Part")
+SpecialMesh18 = Instance.new("SpecialMesh")
+Sound19 = Instance.new("Sound")
+Sound20 = Instance.new("Sound")
+Animation21 = Instance.new("Animation")
+Camera22 = Instance.new("Camera")
+Tool0.Name = "Gun"
+Tool0.Parent = mas
+Tool0.CanBeDropped = false
+Tool0.Grip = CFrame.new(0.108177185, 0.0213241577, 0.140535593, 1, 8.84721896e-09, -6.03962917e-07, -6.03962917e-07, -1.67455653e-07, -1, -8.84732021e-09, 1, -1.67455653e-07)
+Tool0.GripForward = Vector3.new(6.039629170118133e-07, 1, 1.674556528996618e-07)
+Tool0.GripPos = Vector3.new(0.10817718505859375, 0.02132415771484375, 0.14053559303283691)
+Tool0.GripRight = Vector3.new(1, -6.039629170118133e-07, -8.847320209781628e-09)
+Tool0.GripUp = Vector3.new(8.847218957441783e-09, -1.674556528996618e-07, 1)
+Tool0.ToolTip = "Trench Warfare Shotgun"
+Animation1.Name = "Equip"
+Animation1.Parent = Tool0
+Animation1.AnimationId = "rbxassetid://7003473960"
+Animation2.Name = "Reload"
+Animation2.Parent = Tool0
+Animation2.AnimationId = "http://www.roblox.com/Asset?ID=94245658"
+LocalScript3.Name = "Client"
+LocalScript3.Parent = Tool0
+table.insert(cors,sandbox(LocalScript3,function()
+--variables
+local gun = script.Parent
+local handle = gun:WaitForChild("Handle")
+local equipAnimation = gun:WaitForChild("Equip")
+local reloadAnimation = gun:WaitForChild("Reload")
+local maxDistance = 250
+local fire = gun:WaitForChild("Main"):WaitForChild("Fire")
+local reloadSound = handle:WaitForChild("PumpSound")
+local shootSound = handle:WaitForChild("FireSound")
+local shootEvent = gun:WaitForChild("OnShoot")
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local character = player.Character or player.CharacterAdded:Wait()
+local cannotShoot = {
+	"Terrain",
+}
+local main = gun:WaitForChild("Main")
+local flash = main:WaitForChild("Flash")
+local light = main:WaitForChild("Light")
+local bullets = gun:WaitForChild("Bullets")
+local maxBullets = 100
+local canShoot = true
+local damage = 50
+local headDamage = 75
+local gunGui = gun:WaitForChild("Gun")
+local contextActionService = game:GetService("ContextActionService")
+local userInputService = game:GetService("UserInputService")
+local canFire = false
+local isEquipped = false
+local shootAnimation = gun:WaitForChild("Shoot")
+--animations
+local animationTrack
+
+local mouse = player:GetMouse()
+--functions
+local function onInputEnded(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		canFire = false
+	end
+end
+
+local function createBullet(target)
+	local foundBullet = game.ReplicatedStorage:WaitForChild("Bullet")
+	local bullet = foundBullet:Clone()
+	bullet.CFrame = CFrame.new(gun:WaitForChild("Main").Position, gun:WaitForChild("Main").CFrame.LookVector * 10)
+	
+	
+	local bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.MaxForce = Vector3.new(10000000, 10000000, 10000000)
+	bodyVelocity.Name = "BodyVelocity"
+	bodyVelocity.Velocity = (gun.Main.Position - handle.Position).unit * 25
+	bodyVelocity.Parent = bullet
+	bodyVelocity.P = 100000
+	
+	bullet.Parent = workspace
+end
+
+local function OnEquip()
+	mouse.Icon = "http://www.roblox.com/asset/?id=2966012"
+
+	isEquipped = true
+	canFire = true
+	gunGui.Parent = player:FindFirstChild("PlayerGui")
+	gunGui.DisplayBullets.Bullets.Text = tostring(bullets.Value) .. "/" .. tostring(maxBullets)
+	
+	local humanoid = gun.Parent:FindFirstChild("Humanoid")
+	if humanoid then
+		animationTrack = humanoid:LoadAnimation(equipAnimation)
+		animationTrack.Priority = Enum.AnimationPriority.Action
+		
+		animationTrack:Play()
+	end
+end
+
+local function OnUnEquip()
+	mouse.Icon = ""
+	isEquipped = false
+	canFire = false
+	if player.PlayerGui:FindFirstChild("Gun") then
+		player.PlayerGui.Gun.Parent = gun
+	end
+	
+	if animationTrack.IsPlaying then
+		animationTrack:Stop()
+	end
+end
+
+local function reload()
+	canFire = false
+	flash.Enabled = false
+	light.Enabled = false
+	local humanoid = gun.Parent:FindFirstChildWhichIsA("Humanoid")
+	if humanoid and bullets.Value < maxBullets then
+		local animationTrack = humanoid:LoadAnimation(reloadAnimation)
+		animationTrack.Priority = Enum.AnimationPriority.Action
+		
+		animationTrack:Play()
+		reloadSound:Play()
+		wait(2)
+		bullets.Value = maxBullets
+			
+		local gunGui = player.PlayerGui:WaitForChild("Gun")
+		gunGui.DisplayBullets.Bullets.Text = tostring(bullets.Value) .. "/" .. tostring(maxBullets)
+		
+		canFire = true
+		
+		return true
+	end
+end
+
+local function createLight(parent)
+	local light = Instance.new("PointLight")
+	light.Brightness = 10
+	light.Range = 12
+	
+	light.Parent = parent
+end
+
+local function shoot()
+	print("shot0")
+	if canShoot == true then
+		print("shot1")
+		canShoot = false
+		if bullets.Value > 0  and canFire == true then	
+			print("shot2")
+			shootSound:Play()
+			flash.Enabled = true
+			--	createBullet(mouse.Target)
+			--fire.Enabled = true
+			bullets.Value -= 1
+			local gunGui = player.PlayerGui:WaitForChild("Gun")
+			gunGui.DisplayBullets.Bullets.Text = tostring(bullets.Value) .. "/" .. tostring(maxBullets)
+			
+			if mouse.Target then 
+				local target = mouse.Target
+				print(target)
+				if target.Name ~= "Terrain" then
+					local targetPosition = target.Position 
+					local humanoidRootPartPosition = character:WaitForChild("HumanoidRootPart").Position
+					
+					if targetPosition and humanoidRootPartPosition then
+						local magnitude = (targetPosition - humanoidRootPartPosition).magnitude
+						print(magnitude, "magnitude")
+						if magnitude < maxDistance then
+							--can shoot
+							if target.Parent:FindFirstChild("Humanoid") then
+								shootEvent:FireServer(target, damage, headDamage)
+							end
+						end
+					end
+				end
+			else
+				flash.Enabled = false
+				light.Enabled = false
+			end
+	--	else
+			--local reloading = reload()
+			--if not reloading then
+			--	print("Error when reloading!")
+		--	end
+		--	canShoot = true
+		--	return true
+		end
+		wait(0.025)
+	--	fire.Enabled = false
+		--if gun:FindFirstChild("Main"):FindFirstChild("Light") then
+		--	gun:FindFirstChild("Main"):FindFirstChild("Light"):Destroy()
+	--	end
+		
+		wait()
+		canShoot = true
+	end
+end
+
+local function onInputBegan(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 and isEquipped == true then
+		if bullets.Value > 0 then
+			canFire = true
+			light.Enabled = true
+			flash.Enabled = true
+			
+			if animationTrack then
+				animationTrack:Stop()
+
+				local humanoid = gun.Parent:FindFirstChild("Humanoid")
+				if humanoid then
+					animationTrack = humanoid:LoadAnimation(shootAnimation)
+					animationTrack.Priority = Enum.AnimationPriority.Action
+
+					animationTrack:Play()
+				end
+				wait()
+			end
+			
+			while canFire do
+				wait()
+				shoot()
+			end
+			flash.Enabled = false
+			light.Enabled = false
+			
+			if animationTrack then
+				animationTrack:Stop()
+
+				local humanoid = gun.Parent:FindFirstChild("Humanoid")
+				if humanoid then
+					animationTrack = humanoid:LoadAnimation(equipAnimation)
+					animationTrack.Priority = Enum.AnimationPriority.Action
+
+					animationTrack:Play()
+				end
+			end
+			wait()
+		end
+	end
+end
+
+--events
+--gun.Activated:Connect(shoot)
+gun.Unequipped:Connect(OnUnEquip)
+gun.Equipped:Connect(OnEquip)
+userInputService.InputBegan:Connect(onInputBegan)
+userInputService.InputEnded:Connect(onInputEnded)
+contextActionService:BindAction("Reload", reload, false, Enum.KeyCode.R)
+end))
+RemoteEvent4.Name = "OnShoot"
+RemoteEvent4.Parent = Tool0
+IntValue5.Name = "Bullets"
+IntValue5.Parent = Tool0
+Script6.Name = "Server"
+Script6.Parent = Tool0
+table.insert(cors,sandbox(Script6,function()
+local gun = script.Parent
+local shootEvent = gun:WaitForChild("OnShoot")
+
+function onShoot(player, target, damage, headDamage)
+	print(target.Name, "server")
+	if target.Name == "Head" or target:IsA("Accessory") then
+		target.Parent:FindFirstChild("Humanoid"):TakeDamage(headDamage)
+	else
+		target.Parent:FindFirstChild("Humanoid"):TakeDamage(damage)
+	end
+end
+
+
+shootEvent.OnServerEvent:Connect(onShoot)
+end))
+ScreenGui7.Name = "Gun"
+ScreenGui7.Parent = Tool0
+ScreenGui7.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+Frame8.Name = "DisplayBullets"
+Frame8.Parent = ScreenGui7
+Frame8.Position = UDim2.new(0.783989847, 0, 0.880455434, 0)
+Frame8.Size = UDim2.new(0.200000003, 0, 0.100000001, 0)
+Frame8.BackgroundColor = BrickColor.new("Institutional white")
+Frame8.BackgroundColor3 = Color3.new(1, 1, 1)
+Frame8.BackgroundTransparency = 0.5
+Frame8.BorderSizePixel = 0
+TextLabel9.Name = "Bullets"
+TextLabel9.Parent = Frame8
+TextLabel9.Position = UDim2.new(0.5, 0, 0.5, 0)
+TextLabel9.Size = UDim2.new(0.800000012, 0, 0.800000012, 0)
+TextLabel9.AnchorPoint = Vector2.new(0.5, 0.5)
+TextLabel9.BackgroundColor = BrickColor.new("Institutional white")
+TextLabel9.BackgroundColor3 = Color3.new(1, 1, 1)
+TextLabel9.BackgroundTransparency = 1
+TextLabel9.Font = Enum.Font.Code
+TextLabel9.FontSize = Enum.FontSize.Size14
+TextLabel9.Text = "1/8"
+TextLabel9.TextColor = BrickColor.new("Really black")
+TextLabel9.TextColor3 = Color3.new(0, 0, 0)
+TextLabel9.TextScaled = true
+TextLabel9.TextSize = 14
+TextLabel9.TextWrap = true
+TextLabel9.TextWrapped = true
+Part10.Name = "Main"
+Part10.Parent = Tool0
+Part10.CFrame = CFrame.new(21.0010109, 1.21863008, -188.330017, 0, -3.45996018e-16, 1, 0, 1, -3.45996018e-16, -1, 0, 0)
+Part10.Orientation = Vector3.new(0, 90, 0)
+Part10.Position = Vector3.new(21.00101089477539, 1.218630075454712, -188.33001708984375)
+Part10.Rotation = Vector3.new(0, 90, 0)
+Part10.Transparency = 1
+Part10.Velocity = Vector3.new(-2.1486473083496094, 1.3310260772705078, 0.8176212310791016)
+Part10.Size = Vector3.new(0.24576638638973236, 0.23262248933315277, 0.26208674907684326)
+Part10.BottomSurface = Enum.SurfaceType.Smooth
+Part10.CanCollide = false
+Part10.RotVelocity = Vector3.new(1, 1, 1)
+Part10.TopSurface = Enum.SurfaceType.Smooth
+Decal11.Parent = Part10
+WeldConstraint12.Parent = Part10
+WeldConstraint12.Part0 = Part10
+WeldConstraint12.Part1 = Part17
+Fire13.Parent = Part10
+Fire13.Color = Color3.new(0.145098, 0.145098, 0.164706)
+Fire13.Enabled = false
+Fire13.Size = 2
+Fire13.Heat = 0
+Fire13.SecondaryColor = Color3.new(0, 0, 0)
+Fire13.size = 2
+PointLight14.Name = "Light"
+PointLight14.Parent = Part10
+PointLight14.Enabled = false
+PointLight14.Range = 12
+PointLight14.Brightness = 2
+ParticleEmitter15.Name = "Flash"
+ParticleEmitter15.Parent = Part10
+ParticleEmitter15.Speed = NumberRange.new(0, 0)
+ParticleEmitter15.Enabled = false
+ParticleEmitter15.LightEmission = 0.4000000059604645
+ParticleEmitter15.Texture = "rbxassetid://421803006"
+ParticleEmitter15.Transparency = NumberSequence.new(1,0,0,1)
+ParticleEmitter15.Size = NumberSequence.new(0,1,1.5,0.125)
+ParticleEmitter15.EmissionDirection = Enum.NormalId.Front
+ParticleEmitter15.Lifetime = NumberRange.new(0.10000000149011612, 0.10000000149011612)
+ParticleEmitter15.LockedToPart = true
+ParticleEmitter15.Rate = 500
+Script16.Parent = ParticleEmitter15
+table.insert(cors,sandbox(Script16,function()
+while wait() do
+wait(0.025)
+script.Parent.Texture = "rbxassetid://421803006"
+wait(0.05)
+script.Parent.Texture = "rbxassetid://421803091"
+wait(0.025)
+script.Parent.Texture = "rbxassetid://421803134"
+end
+
+end))
+Part17.Name = "Handle"
+Part17.Parent = Tool0
+Part17.CFrame = CFrame.new(21.0000019, 0.399999857, -187, 1, 0, -1.15332006e-16, -1.15332006e-16, 0, 1, 0, -1, 0)
+Part17.Orientation = Vector3.new(-90, 0, 0)
+Part17.Position = Vector3.new(21.000001907348633, 0.39999985694885254, -187)
+Part17.Rotation = Vector3.new(-90, 0, 0)
+Part17.Color = Color3.new(0.105882, 0.164706, 0.207843)
+Part17.Size = Vector3.new(0.4000000059604645, 3.4000000953674316, 0.800000011920929)
+Part17.BrickColor = BrickColor.new("Black")
+Part17.RotVelocity = Vector3.new(1, 1, 1)
+Part17.brickColor = BrickColor.new("Black")
+Part17.FormFactor = Enum.FormFactor.Custom
+Part17.formFactor = Enum.FormFactor.Custom
+SpecialMesh18.Parent = Part17
+SpecialMesh18.MeshId = "rbxassetid://72012794"
+SpecialMesh18.VertexColor = Vector3.new(2, 2, 2)
+SpecialMesh18.TextureId = "http://www.roblox.com/asset/?id=72012605"
+SpecialMesh18.MeshType = Enum.MeshType.FileMesh
+Sound19.Name = "FireSound"
+Sound19.Parent = Part17
+Sound19.TimePosition = 0.1
+Sound19.Pitch = 0.699999988079071
+Sound19.PlaybackSpeed = 0.699999988079071
+Sound19.SoundId = "http://www.roblox.com/asset/?id=94191736"
+Sound20.Name = "PumpSound"
+Sound20.Parent = Part17
+Sound20.Pitch = 0.699999988079071
+Sound20.PlaybackSpeed = 0.699999988079071
+Sound20.SoundId = "http://www.roblox.com/asset/?id=94191778"
+Animation21.Name = "Shoot"
+Animation21.Parent = Tool0
+Animation21.AnimationId = "rbxassetid://7013337664"
+Camera22.Name = "ThumbnailCamera"
+Camera22.Parent = Tool0
+Camera22.CFrame = CFrame.new(-12.7312994, 4.27302837, 43.5032158, -0.0203507748, -0.0882771239, 0.995887995, -0, 0.996094346, 0.0882954001, -0.999792993, 0.00179687981, -0.0202712864)
+Camera22.CoordinateFrame = CFrame.new(-12.7312994, 4.27302837, 43.5032158, -0.0203507748, -0.0882771239, 0.995887995, -0, 0.996094346, 0.0882954001, -0.999792993, 0.00179687981, -0.0202712864)
+Camera22.Focus = CFrame.new(-14.7230768, 4.09643745, 43.5437584, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+Camera22.focus = CFrame.new(-14.7230768, 4.09643745, 43.5437584, 1, 0, 0, 0, 1, 0, 0, 0, 1)
+for i,v in pairs(mas:GetChildren()) do
+	v.Parent = game:GetService("Players").LocalPlayer.Backpack
+	pcall(function() v:MakeJoints() end)
+end
+mas:Destroy()
+for i,v in pairs(cors) do
+	spawn(function()
+		pcall(v)
+	end)
+end
